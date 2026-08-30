@@ -1,63 +1,46 @@
-# GoreBoxRunner Graphics Bridge 0.3.3
+# GoreBoxRunner Graphics Bridge 0.3.4
 
-這版針對 0.3 在 `libunity.so JNI_OnLoad` 入口前被終止的結果，補上 Android ELF linker 原本一定會執行的初始化生命週期。
+0.3.3 實機已把 GoreBox 13.7.9 `libunity.so` initializer chain 從 **19/423 推到 83/423**。0.3.4 不做「第 83 個專用跳過」，而是依照剩餘 constructors 的高風險 ABI 類型先做一輪預防性修補。
 
-## 這次新增
+## 0.3.4 新增
 
-- 解析 `PT_DYNAMIC`
-- 解析 `DT_INIT`
-- 解析 `DT_INIT_ARRAY` / `DT_INIT_ARRAYSZ`
-- `libunity.so` 在 `JNI_OnLoad` 前執行完整 initializer chain
-- GoreBox 13.7.9 的 `libunity.so` 目前偵測到 `423` 個 init-array entries
-- 每個 initializer 呼叫前都會 durable checkpoint + fsync
-- checkpoint 包含 constructor ordinal 與 guest virtual address
-- constructors 全部返回後才呼叫 `JNI_OnLoad` / 捕捉 `RegisterNatives`
-- 保留 0.3 的 CAEAGLLayer + EAGLContext / EGL bridge
+- **Bionic `FILE*` / `__sF` bridge**
+  - 不再把 Android/Bionic 的 stdin/stdout/stderr 物件直接交給 Darwin `stdio`
+  - 攔截 `fclose / fflush / fread / fwrite / fputc / putc / fputs / fprintf / vfprintf`
+  - bootstrap 階段的 `fprintf/vfprintf` 不讀 guest varargs，避免 Android arm64 與 Darwin variadic/`va_list` ABI 差異造成 crash
+- **Android clock bridge**
+  - Linux/Android `CLOCK_REALTIME / MONOTONIC / PROCESS / THREAD / RAW / COARSE / BOOTTIME` → Darwin clock IDs
+  - 攔截 `clock_gettime / clock_getres`
+- **Linux `open()` flag translator**
+  - `O_CREAT / O_EXCL / O_TRUNC / O_APPEND / O_NONBLOCK / O_DIRECTORY / O_NOFOLLOW / O_CLOEXEC...` → Darwin flags
+  - `O_CREAT` 使用安全預設 mode，不讀 guest variadic mode argument
+- **Guest C++ destructor registry**
+  - 攔截 `__cxa_atexit / __cxa_finalize`
+  - 不再讓 Darwin runtime 保存可能在 ELF unload 後失效的 Android guest destructor pointers
+- 延續 0.3.3 的 TLS pthread key、mutex/cond/once、semaphore、signal、Linux mmap、Android 4K guest page、syscall、Android `.so` dlopen/dlsym compatibility layer
 
-## 如果又出現 This app has been terminated
+## 為什麼這版特別針對 83/423
 
-關掉 LiveContainer 的死亡實例後重新開 GoreBoxRunner。彈窗會顯示類似：
+實機最後 checkpoint：
 
 ```text
-ELF initializer 57/423: about to CALL .init_array[56] guest=0x...
+ELF initializer 83/423: about to CALL .init_array[82] guest=0xCDCD0
 ```
 
-這樣下一版可以直接反組譯那一個 constructor，而不是再猜。
+原版 GoreBox `libunity.so` 的 `0xCDCD0` initializer 內可直接看到多次 `__cxa_atexit` 呼叫，所以 0.3.4 先把 guest C++ destructor lifecycle 正確隔離，而不是單純跳過這個 constructor。
+
+同時，剩餘 constructors 後續很可能共用 stdio、clock 與 file-open 路徑，因此一併先補，目標是再次一次跨過一大段，而不是 83 → 84。
 
 ## Codemagic
 
-選：`GoreBoxRunner Graphics Bridge 0.3.3 - Unsigned IPA`
+選：`GoreBoxRunner Graphics Bridge 0.3.4 - Unsigned IPA`
 
-輸出：`GoreBoxRunner-Graphics-0.3.3-unsigned.ipa`
+輸出：`GoreBoxRunner-Graphics-0.3.4-unsigned.ipa`
 
-> 這仍是實驗性相容層，不保證本版已能進遊戲；本版的主要目標是把 Android linker lifecycle 補完整並把 Unity 初始化推進到 JNI registration。
+安裝後仍使用原版 GoreBox 13.7.9 APK，按：
 
+**Unity Constructors + 圖形橋測試**
 
-## 0.3.3 延續既有 constructor/runtime 修正
-實機 0.3.1 停在 `.init_array[11]` guest `0xC4384`。反組譯顯示該 initializer 進入 Unity/Bionic 的 once-guard 後會使用 guest `pthread_mutex_t` / `pthread_cond_t`，並執行 Android ARM64 `syscall(178)` (`gettid`)。
+如果 LiveContainer 再顯示 `This app has been terminated`，關掉死亡實例後重新開 GoreBoxRunner，把新的 durable checkpoint 截圖回傳即可。
 
-0.3.3 因此新增：
-- guest-address keyed pthread mutex/cond/once host-side bridge（不再把 Bionic pthread object 直接交給 Darwin）
-- pthread attr / mutexattr / condattr compatibility adapters
-- pthread_create guest-attr adapter
-- Android ARM64 syscall translator：178=gettid、122/123=affinity；98 futex / 270 process_vm_readv 先以 ENOSYS 走 guest fallback
-- 未知 Android syscall 一律 ENOSYS，絕不直接轉交 Darwin `syscall()`
-- first pthread / syscall bridge durable checkpoints
-
-
-## 0.3.3 批次 Android ABI 修正
-
-0.3.2 實機已從 initializer 12/423 前進到 19/423；第 19 個會使用 Android/Bionic `pthread_key_create`。0.3.3 不只修這一個 constructor，而是一次加入：
-
-- Bionic 32-bit `pthread_key_t` → Darwin host TLS key 對照表
-- `pthread_key_create/delete/get/setspecific`
-- `pthread_setname_np` ABI adapter
-- opaque guest `pthread_attr_t` / `pthread_attr_getstack` adapter
-- guest semaphore table（不把 Android `sem_t` 直接交給 Darwin）
-- Android/Linux `mmap` flags → Darwin flags（特別是 `MAP_ANONYMOUS`）
-- guest `getpagesize/sysconf(_SC_PAGESIZE)` 固定回 Android 4 KiB
-- guest signal/sigset/sigaction bootstrap adapters
-- Android `.so` `dlopen/dlsym/dlclose/dlerror` compatibility routing
-- 原有 mutex/cond/once + Android ARM64 syscall bridge
-
-目的不是只跨過第 19 個，而是讓後續 constructor 遇到同類 Bionic ABI 時一次通過。
+> 0.3.4 仍是實驗性 Android→iOS compatibility runtime，不代表本版已能完整進入遊戲。目標是讓 Unity Android initializer/JNI lifecycle 繼續往真正 rendering entrypoint 前進。
