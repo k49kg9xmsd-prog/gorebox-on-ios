@@ -1,33 +1,30 @@
-# GoreBox iOS POC 0.2 — Codemagic 真機整合版
+# GoreBox 13.7.9 → iOS REAL PORT Stage 1 V2
 
-這版建立在已經成功於 iPad 真機運行的 0.1 上，不再只是灰色測試場。
+這是修正版，**完全不使用隱藏檔案或隱藏資料夾**。
 
-## 0.2 已加入
-- GoreBox 風格的手機 HUD 重新配置
-- 原 APK 的 GoreBox App 圖示（來源：使用者提供的 v13.7.9 APK）
-- 第一人稱低多邊形 carbine viewmodel
-- 30 發彈匣、連射、換彈、後座、槍口閃光
-- AIM：縮 FOV + 武器移至瞄準位置
-- Crouch / Jump / 手動推物件
-- Spawn Menu：Crate / Dummy / Barrel / Ball / Clear
-- Dummy 命中後會轉成簡化 ragdoll parts
-- 命中 Dummy 會產生短時間血液物理粒子
-- 大型戶外 sandbox 場景：草地、混凝土平台、道路、倉庫、圍欄、樹、坡道、物理箱
-- 靜態建築基本碰撞阻擋
-- RayFire 缺席時不阻止遊戲啟動；可破壞物目前使用 SceneKit 動態物理替代
-- 仍然可以使用 Codemagic 產生 unsigned ARM64 IPA
+## 修正內容
+- 不再使用 `.tools`、`.gitignore` 等隱藏名稱。
+- Runtime 工具目錄改成 `RuntimeTools/`。
+- 輸出目錄固定為 `BuildArtifacts/`。
+- 補回上一版 Mobile 分包漏掉的 `PortOverlay/`。
+- 補回完整 `GameRoot/assets/bin/Data` 小檔案、Managed Metadata 與 Resources。
+- Codemagic 一開始就建立 `BuildArtifacts/CodemagicStarted.txt`；即使後面失敗，也應有可下載的診斷檔。
+- 最終成功輸出 `BuildArtifacts/GoreBox_13.7.9_REAL_Recovered_Unity_Project.zip`。
 
-## 目前不是什麼
-- 不是把 Android `libil2cpp.so` / `libunity.so` 硬塞進 IPA。
-- 還不是 1:1 原版 `map_Plains` serialized scene；SceneKit 不能直接載入 Unity `.assets/.unity3d`。
-- 還沒有 RayFire runtime fragmentation。
+## GitHub
+把本資料夾**所有可見內容**放在 repo 根目錄：
 
-## Codemagic
-把本資料夾全部覆蓋到 repo 根目錄後跑：
+- `codemagic.yaml`
+- `README_zh-TW.md`
+- `PortOverlay/`
+- `SourceData/`
+- `Tools/`
 
-`GoreBox POC - Unsigned iPhone/iPad IPA`
+不要改 Chunk 名稱。
 
-產物：
-`build/ipa/GoreBoxPOC-unsigned.ipa`
+## Codemagic workflow
+選：
 
-如果 Codemagic 出現 Swift 編譯錯誤，把最後一段 log 傳回來即可針對 Xcode 版本修。
+`GoreBox REAL Port Stage 1 V2 - Recover Original Unity Project`
+
+Artifacts 使用萬用規則 `BuildArtifacts/**`，所以不會只盯著一個可能尚未產生的 ZIP。
