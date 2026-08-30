@@ -13,8 +13,8 @@ settings:
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
     INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
     PRODUCT_NAME: GoreBoxRunner
-    CURRENT_PROJECT_VERSION: 11
-    MARKETING_VERSION: 0.1.1
+    CURRENT_PROJECT_VERSION: 20
+    MARKETING_VERSION: 0.2
     CODE_SIGN_STYLE: Automatic
 targets:
   GoreBoxRunner:
