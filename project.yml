@@ -13,8 +13,8 @@ settings:
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
     INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
     PRODUCT_NAME: GoreBoxRunner
-    CURRENT_PROJECT_VERSION: 22
-    MARKETING_VERSION: 0.2.2
+    CURRENT_PROJECT_VERSION: 30
+    MARKETING_VERSION: 0.3.0
     CODE_SIGN_STYLE: Automatic
 targets:
   GoreBoxRunner:
@@ -30,6 +30,6 @@ targets:
         SUPPORTS_MACCATALYST: NO
         ONLY_ACTIVE_ARCH: NO
         SWIFT_OBJC_BRIDGING_HEADER: Sources/GoreBoxRunner-Bridging-Header.h
-        OTHER_LDFLAGS: "$(inherited) -lz"
+        OTHER_LDFLAGS: "$(inherited) -lz -framework OpenGLES -framework QuartzCore"
     scheme:
       gatherCoverageData: false
