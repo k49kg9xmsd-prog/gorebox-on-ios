@@ -1,4 +1,4 @@
-name: GoreBoxPOC
+name: GoreBoxRunner
 options:
   bundleIdPrefix: com.localresearch
   deploymentTarget:
@@ -9,29 +9,35 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: 15.0
     TARGETED_DEVICE_FAMILY: "1,2"
     GENERATE_INFOPLIST_FILE: YES
-    INFOPLIST_KEY_CFBundleDisplayName: "GoreBox iOS"
-    INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-    INFOPLIST_KEY_UIRequiresFullScreen: YES
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-    PRODUCT_NAME: GoreBoxPOC
+    INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+    PRODUCT_NAME: GoreBoxRunner
     CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 0.2.0
+    MARKETING_VERSION: 0.0.1
     CODE_SIGN_STYLE: Automatic
 targets:
-  GoreBoxPOC:
+  GoreBoxRunner:
     type: application
     platform: iOS
     sources:
-      - path: GoreBoxPOC/Sources
+      - path: Sources/AppDelegate.swift
+      - path: Sources/RunnerViewController.swift
+      - path: Sources/ELFParser.swift
+      - path: Sources/BinaryBundle.swift
     resources:
-      - path: GoreBoxPOC/Resources
-        optional: true
+      - path: Payload/gb_libil2cpp_so_part00.bin
+      - path: Payload/gb_libil2cpp_so_part01.bin
+      - path: Payload/gb_libil2cpp_so_part02.bin
+      - path: Payload/gb_libil2cpp_so_part03.bin
+      - path: Payload/gb_libunity_so_part00.bin
+      - path: Payload/gb_libunity_so_part01.bin
+      - path: Payload/gb_libRF_CNative_andr_so_part00.bin
+      - path: Payload/gb_libRF_CNative_andr_so_part01.bin
+      - path: Payload/gb_libRF_CNative_andr_so_part02.bin
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.localresearch.goreboxpoc
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_BUNDLE_IDENTIFIER: com.localresearch.goreboxrunner
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
         ENABLE_BITCODE: NO
         SUPPORTS_MACCATALYST: NO
         ONLY_ACTIVE_ARCH: NO
