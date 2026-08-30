@@ -64,7 +64,7 @@ final class RunnerViewController: UIViewController {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             var out: [String] = []
-            out.append("GoreBoxRunner Compatibility Test 1.0")
+            out.append("GoreBoxRunner Compatibility Test 1.0.1")
             out.append("Target: GoreBox 13.7.9 Android ARM64")
             out.append("Host: iOS")
             out.append("Mode: comprehensive SAFE preflight")
@@ -127,13 +127,13 @@ final class RunnerViewController: UIViewController {
                             out.append("Android-only DT_NEEDED still requiring compatibility: \(diag.otherNeededLibraries.joined(separator: ", "))")
                         }
 
-                        appendSample(title: "Android native API sample", values: diag.androidNative, to: &out)
-                        appendSample(title: "EGL sample", values: diag.egl, to: &out)
-                        appendSample(title: "Bionic sample", values: diag.bionic, to: &out)
+                        self.appendSample(title: "Android native API sample", values: diag.androidNative, to: &out)
+                        self.appendSample(title: "EGL sample", values: diag.egl, to: &out)
+                        self.appendSample(title: "Bionic sample", values: diag.bionic, to: &out)
 
                         let classified = Set(diag.androidLog + diag.androidNative + diag.egl + diag.bionic)
                         let unknown = diag.unresolved.filter { !classified.contains($0) }
-                        appendSample(title: "Other unresolved sample", values: unknown, to: &out)
+                        self.appendSample(title: "Other unresolved sample", values: unknown, to: &out)
                         out.append("")
                         out.append(CompatibilityDiagnostics.executionGateText(diag, jit: jit))
                         out.append("")
@@ -206,7 +206,7 @@ final class RunnerViewController: UIViewController {
 
     @objc private func shareReport() {
         guard !latestReport.isEmpty else { return }
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("GoreBoxRunner_CompatibilityTest_1_0.txt")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("GoreBoxRunner_CompatibilityTest_1_0_1.txt")
         do {
             try latestReport.write(to: file, atomically: true, encoding: .utf8)
             let vc = UIActivityViewController(activityItems: [file], applicationActivities: nil)
