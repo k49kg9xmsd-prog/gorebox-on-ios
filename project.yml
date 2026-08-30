@@ -9,6 +9,7 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: 15.0
     TARGETED_DEVICE_FAMILY: "1,2"
     GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_CFBundleDisplayName: "GoreBox iOS"
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
     INFOPLIST_KEY_UIRequiresFullScreen: YES
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -16,7 +17,7 @@ settings:
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
     PRODUCT_NAME: GoreBoxPOC
     CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 0.1.0
+    MARKETING_VERSION: 0.2.0
     CODE_SIGN_STYLE: Automatic
 targets:
   GoreBoxPOC:
@@ -30,7 +31,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.localresearch.goreboxpoc
-        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_BITCODE: NO
         SUPPORTS_MACCATALYST: NO
         ONLY_ACTIVE_ARCH: NO
