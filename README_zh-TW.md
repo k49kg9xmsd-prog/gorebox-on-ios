@@ -1,11 +1,11 @@
-# GoreBoxRunner APK Importer 0.1
+# GoreBoxRunner APK Importer 0.1.1
 
 這版 Runner **不內建 GoreBox 本體**。
 
 ## 使用方式
 1. 把此 repo 上傳 GitHub。
-2. Codemagic 選 `GoreBoxRunner APK Importer 0.1 - Unsigned IPA`。
-3. 安裝輸出的 `GoreBoxRunner-APKImporter-0.1-unsigned.ipa`。
+2. Codemagic 選 `GoreBoxRunner APK Importer 0.1.1 - Unsigned IPA`。
+3. 安裝輸出的 `GoreBoxRunner-APKImporter-0.1.1-unsigned.ipa`。
 4. 開啟 Runner → `匯入 GoreBox APK` → 在 iOS「檔案」選 `GoreBox_v13.7.9.apk`。
 5. Runner 會保存原 APK，並抽出 ARM64 `libmain.so / libil2cpp.so / libunity.so / libRF_CNative_andr.so` 與 `global-metadata.dat`。
 6. 可直接跑「全面相容性診斷」。
