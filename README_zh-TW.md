@@ -1,32 +1,21 @@
-# GoreBoxRunner Compatibility Test 1.0
+# GoreBoxRunner APK Importer 0.1
 
-這是 GoreBox 13.7.9 Android ARM64 → iOS 相容層的全面安全診斷版。
+這版 Runner **不內建 GoreBox 本體**。
 
-內建原 APK 的：
-- libmain.so
-- libil2cpp.so
-- libunity.so
-- libRF_CNative_andr.so
+## 使用方式
+1. 把此 repo 上傳 GitHub。
+2. Codemagic 選 `GoreBoxRunner APK Importer 0.1 - Unsigned IPA`。
+3. 安裝輸出的 `GoreBoxRunner-APKImporter-0.1-unsigned.ipa`。
+4. 開啟 Runner → `匯入 GoreBox APK` → 在 iOS「檔案」選 `GoreBox_v13.7.9.apk`。
+5. Runner 會保存原 APK，並抽出 ARM64 `libmain.so / libil2cpp.so / libunity.so / libRF_CNative_andr.so` 與 `global-metadata.dat`。
+6. 可直接跑「全面相容性診斷」。
+7. `RayFire ARM64 真執行測試` 是實驗性按鈕；它會嘗試執行 APK 內 RayFire 的原 Android ARM64 `ret` 指令。若目前簽名/JIT環境阻擋 anonymous executable memory，App 可能直接被 iOS 終止。
 
-啟動後一次自動測：
-1. ELF64/AArch64 解析
-2. PT_LOAD 實際匿名記憶體配置與 segment copy
-3. relocation 類型與數量
-4. Android imports 在 iOS/Darwin 可直接解析的比例
-5. Bionic / liblog / ANativeWindow / ALooper / ASensor / EGL 缺口
-6. RW mmap、RW→RX、MAP_JIT executable-memory 能力
-7. 每顆 library 的 guest execution readiness gate
-
-這一版不會自動跳進 Android guest code；如果 symbols 尚未補齊，直接執行只會讓 App SIGSEGV，反而拿不到診斷結果。
-
-## GitHub
-解壓後把整個專案內容上傳 repo。10 個 `gb_*.bin` 每個都小於 25 MiB。
-
-## Codemagic
-選：
-`GoreBoxRunner Compatibility Test 1.0 - Unsigned IPA`
-
-成功產物：
-`GoreBoxRunner-CompatibilityTest-1.0-unsigned.ipa`
-
-安裝後按「全部重測」，最後可按「分享」把完整 txt 報告傳回來。
+## 目前狀態
+- APK 匯入/保存：有
+- APK ZIP 解析與 raw-deflate 解壓：有（內建 zlib bridge）
+- GoreBox 13.7.9 SHA256 精確辨識：有
+- ARM64 ELF 診斷：有
+- PT_LOAD / relocations / symbol coverage：有
+- RayFire 最小 guest-call probe：有，需真機測試
+- 完整 GoreBox 啟動：尚未完成；後續需 relocation patcher、Bionic/JNI/ANativeWindow/EGL bridge。
