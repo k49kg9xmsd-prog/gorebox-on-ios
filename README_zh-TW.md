@@ -1,14 +1,15 @@
-# GoreBoxRunner Stage 0 V2
+# GoreBoxRunner Stage 0 V4
 
-修正 Stage 0 顯示 `Missing resource` 的版本。
+這版取消 `Payload/` 資料夾。9 個 GoreBox `.bin` 分片直接放在專案根目錄。
 
-## 修正
-- Codemagic Build 後強制把 9 個 GoreBox ARM64 `.bin` 分片複製到 `GoreBoxRunner.app/GoreBoxPayload/`。
-- 打包 IPA 前會驗證 9/9 檔案真的存在。
-- App 端不只使用 `Bundle.main.url(...)`，也會搜尋 `GoreBoxPayload/`、Bundle URL、resource URL 與 executable 所在目錄。
-- 如果仍找不到，錯誤畫面會顯示實際 Bundle 搜尋路徑，方便判斷是否是 LiveContainer 路徑重導向。
+GitHub repo 根目錄應看到：
 
-## Codemagic
-選：`GoreBoxRunner Stage 0 - Unsigned IPA`
+- `codemagic.yaml`
+- `project.yml`
+- `README_zh-TW.md`
+- `Sources/`
+- 9 個 `gb_*.bin`
 
-正常時 Codemagic 的 `Force embed GoreBox payload` 應顯示 9 個分片，IPA 驗證也必須是 9 個。
+Codemagic 選：`GoreBoxRunner Stage 0 - Unsigned IPA`。
+
+Build 時會自動把根目錄的 9 個 `.bin` 複製進最終 App 的 `GoreBoxPayload/`，不需要你自己建立任何 Payload 資料夾。

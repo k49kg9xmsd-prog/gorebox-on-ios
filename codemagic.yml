@@ -1,0 +1,77 @@
+workflows:
+  gorebox-runner-stage0-unsigned:
+    name: GoreBoxRunner Stage 0 - Unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: latest
+      vars:
+        XCODE_SCHEME: GoreBoxRunner
+        XCODE_PROJECT: GoreBoxRunner.xcodeproj
+    scripts:
+      - name: Verify bundled GoreBox chunks
+        script: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('.')
+          parts = sorted(root.glob('gb_*.bin'))
+          print(f'Found {len(parts)} binary chunks')
+          if len(parts) != 9:
+              raise SystemExit('Expected 9 GoreBox binary chunks in project root')
+          for p in parts:
+              print(p.name, p.stat().st_size)
+              if p.stat().st_size >= 25 * 1024 * 1024:
+                  raise SystemExit(f'{p} is too large for GitHub web upload')
+          PY
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen || brew upgrade xcodegen || true
+          xcodegen --version
+      - name: Generate Xcode project
+        script: |
+          xcodegen generate --spec project.yml
+      - name: Build unsigned iOS app
+        script: |
+          set -euo pipefail
+          rm -rf build
+          mkdir -p build
+          xcodebuild build \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$CM_BUILD_DIR/build/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tee "$CM_BUILD_DIR/build/xcodebuild.log"
+      - name: Force embed GoreBox payload
+        script: |
+          set -euo pipefail
+          APP="$CM_BUILD_DIR/build/DerivedData/Build/Products/Release-iphoneos/GoreBoxRunner.app"
+          test -d "$APP"
+          mkdir -p "$APP/GoreBoxPayload"
+          cp -fv gb_*.bin "$APP/GoreBoxPayload/"
+          echo "Embedded payload files:"
+          ls -lh "$APP/GoreBoxPayload"
+          test "$(find "$APP/GoreBoxPayload" -type f -name 'gb_*.bin' | wc -l | tr -d ' ')" = "9"
+
+      - name: Package unsigned IPA
+        script: |
+          set -euo pipefail
+          APP="$CM_BUILD_DIR/build/DerivedData/Build/Products/Release-iphoneos/GoreBoxRunner.app"
+          test -d "$APP"
+          rm -rf "$CM_BUILD_DIR/build/ipa"
+          mkdir -p "$CM_BUILD_DIR/build/ipa/Payload"
+          cp -R "$APP" "$CM_BUILD_DIR/build/ipa/Payload/"
+          cd "$CM_BUILD_DIR/build/ipa"
+          /usr/bin/zip -qry GoreBoxRunner-Stage0-unsigned.ipa Payload
+          echo "Payload verification inside IPA:"
+          /usr/bin/unzip -l GoreBoxRunner-Stage0-unsigned.ipa | grep -E 'GoreBoxPayload/gb_.*\.bin'
+          test "$(/usr/bin/unzip -l GoreBoxRunner-Stage0-unsigned.ipa | grep -cE 'GoreBoxPayload/gb_.*\.bin')" = "9"
+    artifacts:
+      - build/ipa/*.ipa
+      - build/DerivedData/Build/Products/Release-iphoneos/*.app
+      - build/*.log

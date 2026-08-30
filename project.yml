@@ -25,15 +25,15 @@ targets:
       - path: Sources/ELFParser.swift
       - path: Sources/BinaryBundle.swift
     resources:
-      - path: Payload/gb_libil2cpp_so_part00.bin
-      - path: Payload/gb_libil2cpp_so_part01.bin
-      - path: Payload/gb_libil2cpp_so_part02.bin
-      - path: Payload/gb_libil2cpp_so_part03.bin
-      - path: Payload/gb_libunity_so_part00.bin
-      - path: Payload/gb_libunity_so_part01.bin
-      - path: Payload/gb_libRF_CNative_andr_so_part00.bin
-      - path: Payload/gb_libRF_CNative_andr_so_part01.bin
-      - path: Payload/gb_libRF_CNative_andr_so_part02.bin
+      - path: gb_libil2cpp_so_part00.bin
+      - path: gb_libil2cpp_so_part01.bin
+      - path: gb_libil2cpp_so_part02.bin
+      - path: gb_libil2cpp_so_part03.bin
+      - path: gb_libunity_so_part00.bin
+      - path: gb_libunity_so_part01.bin
+      - path: gb_libRF_CNative_andr_so_part00.bin
+      - path: gb_libRF_CNative_andr_so_part01.bin
+      - path: gb_libRF_CNative_andr_so_part02.bin
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.localresearch.goreboxrunner
