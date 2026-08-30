@@ -1,38 +1,39 @@
-# GoreBoxRunner Bootstrap 0.2
+# GoreBoxRunner Bootstrap 0.2.1
 
-這版仍然 **不內建 GoreBox APK**。第一次開啟後從 iOS「檔案」匯入你自己的 GoreBox 13.7.9 APK。
+這版修正 0.2 真機「This app has been terminated」的第一個高機率原因：**Android 4 KB ELF page 與 iOS 16 KB host page 權限碰撞**。
 
-## 這版和 0.1.1 最大差別
-0.1.1 的 RayFire 按鈕只證明「從 Android binary 複製出來的 ARM64 指令可以在目前 iOS process 執行」。
+## 0.2 的問題
+GoreBox 的 `libmain.so` 兩個 PT_LOAD：
 
-0.2 新增真正的 ELF bootstrap loader：
+- code 約 `0x0000–0x0F48`：`R-X`
+- data 約 `0x2D80–0x3040`：`RW-`
 
-- 對完整 Android ARM64 `.so` 建立 PT_LOAD image
-- 複製 code/data/BSS 到正確 virtual-address layout
-- 套用 `R_AARCH64_RELATIVE / GLOB_DAT / JUMP_SLOT / ABS64`
-- 加入第一批 Android Bionic / liblog / Linux ABI compatibility shim
-- 先把 `ANativeWindow / ALooper / ASensor / EGL` imports 接到 bootstrap stub，讓整顆 Unity ELF 可以完成 relocation
-- `libmain.so` 會嘗試用最小 fake JavaVM/JNIEnv 執行真正的 `JNI_OnLoad`
-- RayFire 會從 **完整 mapped + relocated ELF image** 執行 `GetTestIntValue` 並返回 iOS
-- IL2CPP / Unity 目前只做到完整 map + relocation；Unity 的 EGL stub 還不是實際畫面 backend
+Android 4 KB page 下它們分開，但 16 KB iOS page 下都落在同一個 `0x0000–0x3FFF` host page。0.2 是逐 segment `mprotect`，第二個 RW segment 會把前面的 X 權限移掉；一跳 `JNI_OnLoad` 就可能被 iOS 終止。
+
+## 0.2.1 修正
+- 先以 **host page** 為單位合併所有 PT_LOAD 權限
+- 偵測 `W+X` collision page
+- 先嘗試 host page 的合併權限
+- 若 iOS W^X 不允許 RWX，當前受控 bootstrap 會 fallback 到 `R-X`（relocation 已完成；目前 probe 不會改 guest data）
+- 每個危險階段都保存 `BootstrapCheckpoint`
+- 若 App 再被終止，重新打開會直接顯示最後停在：
+  - ELF loader
+  - libmain JNI_OnLoad
+  - full-image RayFire call
+  - IL2CPP
+  - Unity
+- 報告新增 host page size / W+X collision / RWX accepted / RX fallback 統計
 
 ## Build
 Codemagic workflow：
 
-`GoreBoxRunner Bootstrap 0.2 - Unsigned IPA`
+`GoreBoxRunner Bootstrap 0.2.1 - Unsigned IPA`
 
 輸出：
 
-`GoreBoxRunner-Bootstrap-0.2-unsigned.ipa`
+`GoreBoxRunner-Bootstrap-0.2.1-unsigned.ipa`
 
-## 真機使用
-1. 安裝 IPA。
-2. `匯入 GoreBox APK`。
-3. 選 GoreBox 13.7.9 APK。
-4. 按 **實驗性啟動 GoreBox**。
-5. 把畫面最下面的 Bootstrap 報告貼回來。
+## 真機
+保留原本匯入的 GoreBox APK 即可（如果換成新安裝 App 導致容器不同，就重新匯入一次）。按 **實驗性啟動 GoreBox**。
 
-## 目前邊界
-如果 4 顆 library 都顯示 `Relocations applied = total` 且 `Unresolved after shim table = 0`，代表 Android ELF loader / relocation / 第一批 ABI shim 已經過關。
-
-真正看到 GoreBox 畫面仍需要把現在的 `ANativeWindow + EGL` bootstrap stub 換成真正能提供 drawable surface 的 iOS/Metal bridge。這版不宣稱已經完整可玩。
+這版仍是 bootstrap，不宣稱已經完整可玩；目標是讓整顆 Android ELF 的 controlled calls 穩定跨過 16 KB page 差異，之後才能繼續真正的 JNI / ANativeWindow / EGL bridge。
