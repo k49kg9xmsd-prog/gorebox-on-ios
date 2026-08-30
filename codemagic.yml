@@ -1,0 +1,57 @@
+workflows:
+  gorebox-runner-bootstrap:
+    name: GoreBoxRunner Bootstrap 0.2.2 - Unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: latest
+      vars:
+        XCODE_SCHEME: GoreBoxRunner
+        XCODE_PROJECT: GoreBoxRunner.xcodeproj
+    scripts:
+      - name: Verify clean Runner source
+        script: |
+          set -euo pipefail
+          echo "Runner contains no GoreBox APK or bundled .so payload."
+          if find . -maxdepth 2 \( -name '*.apk' -o -name 'gb_*.bin' \) | grep -q .; then
+            echo "Unexpected bundled game payload found"
+            exit 1
+          fi
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen || brew upgrade xcodegen || true
+          xcodegen --version
+      - name: Generate Xcode project
+        script: |
+          xcodegen generate --spec project.yml
+      - name: Build unsigned iOS app
+        script: |
+          set -euo pipefail
+          rm -rf build
+          mkdir -p build
+          xcodebuild build \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$CM_BUILD_DIR/build/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tee "$CM_BUILD_DIR/build/xcodebuild.log"
+      - name: Package unsigned IPA
+        script: |
+          set -euo pipefail
+          APP="$CM_BUILD_DIR/build/DerivedData/Build/Products/Release-iphoneos/GoreBoxRunner.app"
+          test -d "$APP"
+          rm -rf "$CM_BUILD_DIR/build/ipa"
+          mkdir -p "$CM_BUILD_DIR/build/ipa/Payload"
+          cp -R "$APP" "$CM_BUILD_DIR/build/ipa/Payload/"
+          cd "$CM_BUILD_DIR/build/ipa"
+          /usr/bin/zip -qry GoreBoxRunner-Bootstrap-0.2.2-unsigned.ipa Payload
+          ls -lh GoreBoxRunner-Bootstrap-0.2.2-unsigned.ipa
+    artifacts:
+      - build/ipa/*.ipa
+      - build/DerivedData/Build/Products/Release-iphoneos/*.app
+      - build/*.log

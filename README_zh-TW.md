@@ -1,39 +1,32 @@
-# GoreBoxRunner Bootstrap 0.2.1
+# GoreBoxRunner Bootstrap 0.2.2
 
-這版修正 0.2 真機「This app has been terminated」的第一個高機率原因：**Android 4 KB ELF page 與 iOS 16 KB host page 權限碰撞**。
+這版針對真機 checkpoint `about to CALL libmain JNI_OnLoad` 後被 LiveContainer 終止。
 
-## 0.2 的問題
-GoreBox 的 `libmain.so` 兩個 PT_LOAD：
+## 0.2.2 修正
+- **完全禁止 RWX guest page**：Android 4 KB RX/RW segment 在 iOS 16 KB host page 發生 W+X collision 時，relocation 完成後直接凍結成 `R-X`，不再先嘗試 `RWX`。
+- **ARM64 instruction-cache flush**：任何可執行 host page 在 `mprotect` 前都呼叫 iOS `sys_icache_invalidate`。
+- **完整 libmain image RET sanity probe**：GoreBox 13.7.9 的 `libmain.so` 在 vaddr `0x93C` 有原生 `ret`，會先從完整 mapped ELF image 執行它，再進 JNI。這能分辨「整頁不能執行」與「JNI callback 出錯」。
+- **耐斷電 checkpoint**：危險步驟直接寫 `bootstrap-checkpoint.txt` 並 `fsync`。
+- **JNI 內部 checkpoint**：會記錄 `AttachCurrentThread`、`FindClass`、`RegisterNatives`、`ExceptionClear` 是否真的被 Android `JNI_OnLoad` 呼叫。
 
-- code 約 `0x0000–0x0F48`：`R-X`
-- data 約 `0x2D80–0x3040`：`RW-`
+## 期待的成功順序
+```text
+returned from libmain full-image RET sanity probe
+JNI callback: AttachCurrentThread entered
+JNI callback: FindClass entered
+JNI callback: RegisterNatives entered
+C bridge: guest JNI_OnLoad returned
+```
 
-Android 4 KB page 下它們分開，但 16 KB iOS page 下都落在同一個 `0x0000–0x3FFF` host page。0.2 是逐 segment `mprotect`，第二個 RW segment 會把前面的 X 權限移掉；一跳 `JNI_OnLoad` 就可能被 iOS 終止。
-
-## 0.2.1 修正
-- 先以 **host page** 為單位合併所有 PT_LOAD 權限
-- 偵測 `W+X` collision page
-- 先嘗試 host page 的合併權限
-- 若 iOS W^X 不允許 RWX，當前受控 bootstrap 會 fallback 到 `R-X`（relocation 已完成；目前 probe 不會改 guest data）
-- 每個危險階段都保存 `BootstrapCheckpoint`
-- 若 App 再被終止，重新打開會直接顯示最後停在：
-  - ELF loader
-  - libmain JNI_OnLoad
-  - full-image RayFire call
-  - IL2CPP
-  - Unity
-- 報告新增 host page size / W+X collision / RWX accepted / RX fallback 統計
+如果仍被終止，重新開 GoreBoxRunner，彈窗會讀磁碟上最後一個 checkpoint，定位會比 0.2.1 更精確。
 
 ## Build
 Codemagic workflow：
 
-`GoreBoxRunner Bootstrap 0.2.1 - Unsigned IPA`
+`GoreBoxRunner Bootstrap 0.2.2 - Unsigned IPA`
 
 輸出：
 
-`GoreBoxRunner-Bootstrap-0.2.1-unsigned.ipa`
+`GoreBoxRunner-Bootstrap-0.2.2-unsigned.ipa`
 
-## 真機
-保留原本匯入的 GoreBox APK 即可（如果換成新安裝 App 導致容器不同，就重新匯入一次）。按 **實驗性啟動 GoreBox**。
-
-這版仍是 bootstrap，不宣稱已經完整可玩；目標是讓整顆 Android ELF 的 controlled calls 穩定跨過 16 KB page 差異，之後才能繼續真正的 JNI / ANativeWindow / EGL bridge。
+這仍是 bootstrap 版本；它不是已完成的 GoreBox iOS 相容層。
