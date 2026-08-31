@@ -1,53 +1,45 @@
-# GoreBoxRunner Graphics Bridge 0.3.5
+# GoreBoxRunner Graphics Bridge 0.3.6
 
-0.3.3 實機已把 GoreBox 13.7.9 `libunity.so` initializer chain 從 **19/423 推到 83/423**；0.3.4 仍停在 `.init_array[82]` / `0xCDCD0`。重新反組譯後發現，該 constructor 後段會進入直接執行 `MRS TPIDR_EL0` 的 Unity helper。這是 Android arm64/Bionic TLS ABI 本身，不是 imported symbol，因此前幾版的 pthread/C++/stdio shim 根本攔不到。
+實機 0.3.5 已把 GoreBox 13.7.9 `libunity.so` initializer chain 從 **83/423 推到 117/423**。這證明 Android TLS 補償方向有效，但也暴露 0.3.5 的做法有一個更根本的風險：它在 guest code 執行期間暫時覆寫真正的 iOS `TPIDR_EL0`。
 
-## 0.3.5 新增
+問題是 guest code 會透過 PLT 直接呼叫 Darwin/libSystem。這些 host 函式本身也依賴 iOS 的 thread pointer；如果它們在 synthetic Bionic TPIDR 下執行，就可能在看似無關的 constructor 內突然被終止。
 
-- **Bionic `FILE*` / `__sF` bridge**
-  - 不再把 Android/Bionic 的 stdin/stdout/stderr 物件直接交給 Darwin `stdio`
-  - 攔截 `fclose / fflush / fread / fwrite / fputc / putc / fputs / fprintf / vfprintf`
-  - bootstrap 階段的 `fprintf/vfprintf` 不讀 guest varargs，避免 Android arm64 與 Darwin variadic/`va_list` ABI 差異造成 crash
-- **Android clock bridge**
-  - Linux/Android `CLOCK_REALTIME / MONOTONIC / PROCESS / THREAD / RAW / COARSE / BOOTTIME` → Darwin clock IDs
-  - 攔截 `clock_gettime / clock_getres`
-- **Linux `open()` flag translator**
-  - `O_CREAT / O_EXCL / O_TRUNC / O_APPEND / O_NONBLOCK / O_DIRECTORY / O_NOFOLLOW / O_CLOEXEC...` → Darwin flags
-  - `O_CREAT` 使用安全預設 mode，不讀 guest variadic mode argument
-- **Guest C++ destructor registry**
-  - 攔截 `__cxa_atexit / __cxa_finalize`
-  - 不再讓 Darwin runtime 保存可能在 ELF unload 後失效的 Android guest destructor pointers
-- 延續 0.3.3 的 TLS pthread key、mutex/cond/once、semaphore、signal、Linux mmap、Android 4K guest page、syscall、Android `.so` dlopen/dlsym compatibility layer
+## 0.3.6 核心改動：binary-level TLS virtualization
 
-## 為什麼這版特別針對 83/423
+0.3.6 **不再修改 iOS 真正的 `TPIDR_EL0`**。
 
-實機最後 checkpoint：
+載入 Android ELF、relocation 完成後、頁面凍結為 RX 之前，Runner 會掃描 executable PT_LOAD，找到 Android ARM64：
 
-```text
-ELF initializer 83/423: about to CALL .init_array[82] guest=0xCDCD0
+```asm
+MRS Xn, TPIDR_EL0
 ```
 
-原版 GoreBox `libunity.so` 的 `0xCDCD0` initializer 會先建立數個全域物件，後段呼叫的 helper 直接從 `TPIDR_EL0 + 0x28` 讀 Android stack guard。`libunity.so` 內可靜態找到大量 `TPIDR_EL0` 讀取，因此 0.3.5 不跳過 constructor，而是在進入 guest code 時提供 Bionic-shaped TLS context。
+並在原位改寫成一條 `ADRP`，讓相同目的暫存器直接得到一個與 ELF 映像相鄰的 **synthetic Bionic TLS page**。
 
-同時，剩餘 constructors 後續很可能共用 stdio、clock 與 file-open 路徑，因此一併先補，目標是再次一次跨過一大段，而不是 83 → 84。
+因此：
+
+- Android guest 的 stack guard / TLS 讀取仍有合法資料
+- Darwin/libSystem 永遠保留真正的 iOS TPIDR_EL0
+- guest → host PLT/shim 轉移不再帶著錯誤 host TLS
+- 不需要跳過任何 constructor
+- 不需要 RWX；patch 在最終 `mprotect(RX)` 前完成並 flush instruction cache
+
+GoreBox 13.7.9 原版 ARM64 靜態掃描可看到大量直接 `TPIDR_EL0` 讀取：`libunity.so` 約 2926 處、`libil2cpp.so` 約 985 處、RayFire 約 964 處、`libmain.so` 1 處。0.3.6 會在每顆實際匯入的 ELF 上動態掃描與改寫，不依賴硬編地址。
+
+## 保留的相容層
+
+仍包含前版已驗證有效的：Bionic pthread mutex/cond/once/key、semaphore、signal、Android syscall translator、Linux mmap/open flags、Android 4K guest page 行為、Bionic stdio/`__sF`、clock ID、`__cxa_atexit`、Android `.so` dlopen/dlsym、ANativeWindow/EGL bootstrap bridge。
 
 ## Codemagic
 
-選：`GoreBoxRunner Graphics Bridge 0.3.5 - Unsigned IPA`
+選：`GoreBoxRunner Graphics Bridge 0.3.6 - Unsigned IPA`
 
-輸出：`GoreBoxRunner-Graphics-0.3.5-unsigned.ipa`
+輸出：`GoreBoxRunner-Graphics-0.3.6-unsigned.ipa`
 
-安裝後仍使用原版 GoreBox 13.7.9 APK，按：
+安裝後仍匯入原版 GoreBox 13.7.9 APK，按：
 
-**Unity Constructors + 圖形橋測試**
+**Unity Constructors + 圖形橋 0.3.6**
 
 如果 LiveContainer 再顯示 `This app has been terminated`，關掉死亡實例後重新開 GoreBoxRunner，把新的 durable checkpoint 截圖回傳即可。
 
-> 0.3.5 仍是實驗性 Android→iOS compatibility runtime，不代表本版已能完整進入遊戲。目標是讓 Unity Android initializer/JNI lifecycle 繼續往真正 rendering entrypoint 前進。
-
-
-## 0.3.5 修正重點
-
-0.3.4 在 `.init_array[82]`（guest `0xCDCD0`）仍終止。重新反組譯後確認該 constructor 的後段會進入含 `MRS TPIDR_EL0` 的 Unity helper。GoreBox 的 Android/NDK arm64 程式直接從 `TPIDR_EL0 + 0x28` 讀 Bionic stack guard；這不是 imported symbol，因此前面的 pthread / C++ shim 無法攔截。
-
-0.3.5 在每次 guest constructor / JNI / native call 前暫時安裝 Bionic-shaped TPIDR_EL0 TLS，返回 iOS 後立即恢復原 host TPIDR；guest pthread 新執行緒也經 trampoline 建立獨立 TLS block。這是針對 Android arm64 TLS ABI 本身的修復，不是跳過第 83 個 constructor。
+> 0.3.6 仍是實驗性 Android→iOS compatibility runtime，不代表本版已能完整進入遊戲；這版目標是移除 0.3.5「改寫 host TPIDR」造成的結構性不穩定，讓 constructor chain 能繼續大幅前進。
