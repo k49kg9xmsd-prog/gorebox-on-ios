@@ -14,7 +14,7 @@ settings:
     INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
     PRODUCT_NAME: GoreBoxRunner
     CURRENT_PROJECT_VERSION: 42
-    MARKETING_VERSION: 0.4.2
+    MARKETING_VERSION: 0.4.3
     CODE_SIGN_STYLE: Automatic
 targets:
   GoreBoxRunner:
